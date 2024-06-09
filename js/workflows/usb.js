@@ -8,7 +8,7 @@ import {
 
 let btnRequestSerialDevice, btnSelectHostFolder, btnUseHostFolder, lblWorkingfolder;
 let ourSerial = navigator.serial || polyfill;
-let SerialPort = SerialPort || SerialPortPolyfill;
+// let SerialPort = SerialPort || SerialPortPolyfill;
 
 class USBWorkflow extends Workflow {
     constructor() {
@@ -157,9 +157,9 @@ class USBWorkflow extends Workflow {
             try {
                 await this.connectToSerial();
             } catch (e) {
-                //console.log(e);
-                //alert(e.message);
-                //alert("Unable to connect to device. Make sure it is not already in use.");
+                console.log(e);
+                alert(e.message);
+                alert("Unable to connect to device. Make sure it is not already in use.");
                 // TODO: I think this also occurs if the user cancels the requestPort dialog
             }
         });
@@ -192,7 +192,7 @@ class USBWorkflow extends Workflow {
     }
 
     async available() {
-        if (!('serial' in navigator)) {
+        if (!('serial' in navigator) && !ourSerial) {
             return Error("Web Serial is not enabled in this browser");
         }
         return true;
@@ -228,7 +228,12 @@ class USBWorkflow extends Workflow {
     }
 
     async _switchToDevice(device) {
-        device.addEventListener("message", this.onSerialReceive.bind(this));
+        if (this._serialDevice === navigator.serial) {
+            device.addEventListener("message", this.onSerialReceive.bind(this));
+        } else {
+            // bind onSerialReceive to the polyfilled device
+            SerialPortPolyfill.prototype.addEventListener("message", this.onSerialReceive.bind(this));
+        }
 
         this._serialDevice = device;
         console.log("switch to", this._serialDevice);
