@@ -1,14 +1,11 @@
-import {CONNTYPE, CONNSTATE} from '../constants.js';
-import {Workflow} from './workflow.js';
-import {GenericModal} from '../common/dialogs.js';
-import {FileTransferClient} from '../common/usb-file-transfer.js';
-import {
-    serial as polyfill, SerialPort as SerialPortPolyfill,
-  } from 'web-serial-polyfill';
+import { CONNTYPE, CONNSTATE } from '../constants.js';
+import { Workflow } from './workflow.js';
+import { GenericModal } from '../common/dialogs.js';
+import { FileTransferClient } from '../common/usb-file-transfer.js';
+import { serial as polyfill, SerialPort as SerialPortPolyfill } from 'web-serial-polyfill';
 
 let btnRequestSerialDevice, btnSelectHostFolder, btnUseHostFolder, lblWorkingfolder;
 let ourSerial = navigator.serial || polyfill;
-// let SerialPort = SerialPort || SerialPortPolyfill;
 
 class USBWorkflow extends Workflow {
     constructor() {
@@ -228,23 +225,18 @@ class USBWorkflow extends Workflow {
     }
 
     async _switchToDevice(device) {
-        if (this._serialDevice === navigator.serial) {
+        this._serialDevice = device;
+
+        // Correctly bind the onSerialReceive method
+        if (navigator.serial) {
             device.addEventListener("message", this.onSerialReceive.bind(this));
         } else {
-            // bind onSerialReceive to the polyfilled device
-            SerialPortPolyfill.prototype.addEventListener("message", this.onSerialReceive.bind(this));
+            // Polyfill case: Directly use the _readSerialLoop to process data
+            this._readSerialLoop();
         }
 
-        this._serialDevice = device;
         console.log("switch to", this._serialDevice);
-        await this._serialDevice.open({baudRate: 115200}); // TODO: Will fail if something else is already connected or it isn't found.
-
-        // Start the read loop
-        this._readLoopPromise = this._readSerialLoop().catch(
-            async function(error) {
-                await this.onDisconnected();
-            }.bind(this)
-        );
+        await this._serialDevice.open({ baudRate: 115200 });
 
         if (this._serialDevice.writable) {
             this.writer = this._serialDevice.writable.getWriter();
@@ -257,6 +249,7 @@ class USBWorkflow extends Workflow {
 
         // At this point we should see if we should init the file client and check if have a saved dir handle
         this.initFileClient(new FileTransferClient(this.connectionStatus.bind(this), this._uid));
+
         const fileClient = this.fileHelper.getFileClient();
         const result = await fileClient.loadSavedDirHandle();
         if (result) {
@@ -297,17 +290,17 @@ binascii.hexlify(microcontroller.cpu.uid).decode('ascii').upper()`
             return;
         }
 
-        const messageEvent = new Event("message");
         const decoder = new TextDecoder();
 
         if (this._serialDevice.readable) {
             this.reader = this._serialDevice.readable.getReader();
             console.log("Read Loop Started");
+
             while (true) {
-                const {value, done} = await this.reader.read();
+                const { value, done } = await this.reader.read();
                 if (value) {
-                    messageEvent.data = decoder.decode(value);
-                    this._serialDevice.dispatchEvent(messageEvent);
+                    const messageEvent = new CustomEvent("message", { detail: decoder.decode(value) });
+                    this.onSerialReceive(messageEvent);
                 }
                 if (done) {
                     this.reader.releaseLock();
@@ -333,6 +326,11 @@ binascii.hexlify(microcontroller.cpu.uid).decode('ascii').upper()`
         btnRequestSerialDevice.disabled = !buttonStates[step].request;
         btnSelectHostFolder.disabled = !buttonStates[step].select;
     }
+
+    onSerialReceive(event) {
+        console.log("Received:", event.detail);
+        // Handle the received data
+    }
 }
 
-export {USBWorkflow};
+export { USBWorkflow };
