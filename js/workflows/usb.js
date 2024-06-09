@@ -2,8 +2,13 @@ import {CONNTYPE, CONNSTATE} from '../constants.js';
 import {Workflow} from './workflow.js';
 import {GenericModal} from '../common/dialogs.js';
 import {FileTransferClient} from '../common/usb-file-transfer.js';
+import {
+    serial as polyfill, SerialPort as SerialPortPolyfill,
+  } from 'web-serial-polyfill';
 
 let btnRequestSerialDevice, btnSelectHostFolder, btnUseHostFolder, lblWorkingfolder;
+let ourSerial = navigator.serial || polyfill;
+let SerialPort = SerialPort || SerialPortPolyfill;
 
 class USBWorkflow extends Workflow {
     constructor() {
@@ -89,7 +94,7 @@ class USBWorkflow extends Workflow {
         // the device on the stored port is currently connected by checking if the
         // readable and writable properties are null.
 
-        let allDevices = await navigator.serial.getPorts();
+        let allDevices = await ourSerial.getPorts();
         let connectedDevices = [];
         for (let device of allDevices) {
             let devInfo = await device.getInfo();
@@ -110,7 +115,7 @@ class USBWorkflow extends Workflow {
                 await device.forget();
 
                 console.log("Failed to automatically connect to saved device. Prompting user to select a device.");
-                device = await navigator.serial.requestPort();
+                device = await ourSerial.requestPort();
                 console.log(device);
             }
 
@@ -119,7 +124,7 @@ class USBWorkflow extends Workflow {
             // This would help with other workflows as well
         } else {
             console.log('Requesting any serial device...');
-            device = await navigator.serial.requestPort();
+            device = await ourSerial.requestPort();
         }
 
         // If we didn't automatically use a saved device
