@@ -1,7 +1,7 @@
 // This file is needed and loaded by https://github.com/adafruit/circuitpython/blob/main/supervisor/shared/web_workflow/static/code.html
 
 // Boot strap load everything from code.circuitpython.org
-let SITE = "https://code.circuitpython.org";
+let SITE = "https://code-beta.circuitpython.org";
 if (location.hostname == "localhost" || location.hostname == "127.0.0.1") {
     // For development purposes
     SITE = `${location.protocol}//${location.host}`;
