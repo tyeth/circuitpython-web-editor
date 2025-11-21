@@ -1,3 +1,6 @@
+@use "../base/variables" as *;
+@use "sass:color";
+
 .layout {
     height: 100vh;
     height: calc(var(--vh, 1vh) * 100);
@@ -57,11 +60,24 @@
 
 #editor-bar, #serial-bar {
     display: flex;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;  // Prevent wrapping - keep all buttons on one line
     align-items: center;
-    padding: 0 10px;
+    padding: 0 5px;
     min-height: 60px;
     height: 4em;
+    overflow-x: auto;  // Add horizontal scroll if needed
+
+    // All buttons should not shrink
+    button, a {
+        flex-shrink: 0;
+        white-space: nowrap;
+        margin: 0 3px;  // Override default button margins - tighter spacing
+    }
+
+    // First button has no left margin
+    button:first-child, a:first-child {
+        margin-left: 0;
+    }
 }
 
 #editor-page {
@@ -72,6 +88,18 @@
 }
 
 #serial-page {
+    #plotter {
+        flex: 2 1 0;
+        background: #777;
+        position: relative;
+        width: 99%;
+        overflow: hidden;
+        padding: 10px 20px;
+
+        &.hidden{
+            display: none;
+        }
+    }
     #terminal {
         flex: 1 1 0%;
         background: #333;
@@ -98,6 +126,14 @@
                 background: var(--highlight);
             }
         }
+        
+        .xterm-screen {
+            padding-right: 20px;  // Add padding to prevent text from going under scrollbar
+            box-sizing: border-box;
+        }
+    }
+    #buffer-size{
+        width: 70px;
     }
 }
 
@@ -133,6 +169,14 @@
     }
 }
 
+.connect-status-content {
+    background-color: #eebbbb;
+    color: #222222;
+    border-radius: 10px;
+    padding: 10px;
+    margin: 10px;
+}
+
 .popup-modal {
     #message {
         a {
@@ -155,7 +199,7 @@
     background-color: $gray;
 
     &:hover {
-        background-color: darken($gray, 15%);
+        background-color: color.adjust($gray, $lightness: -15%);
     }
 
     &.active {
@@ -360,6 +404,7 @@
                 grid-template-columns: 30px minmax(60px, 1fr) 60px 1fr;
                 grid-gap: 10px;
                 cursor: default;
+                user-select:none;
 
                 &.hidden-file {
 
@@ -400,7 +445,8 @@
         }
     }
 
-    &[data-popup-modal="device-discovery"] {
+    &[data-popup-modal="device-discovery"],
+    &[data-popup-modal="device-info"] {
         .device-info {
             margin-top: 5px;
             width: 100%;

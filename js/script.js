@@ -5,20 +5,22 @@ import {indentWithTab} from "@codemirror/commands"
 import { python } from "@codemirror/lang-python";
 import { syntaxHighlighting, indentUnit } from "@codemirror/language";
 import { classHighlighter } from "@lezer/highlight";
+import { getFileIcon } from "./common/file_dialog.js";
 
 import { Terminal } from '@xterm/xterm';
-import { FitAddon } from '@xterm/addon-fit';
 import { WebLinksAddon } from '@xterm/addon-web-links';
 
 import state from './state.js'
 import { BLEWorkflow } from './workflows/ble.js';
 import { USBWorkflow } from './workflows/usb.js';
 import { WebWorkflow } from './workflows/web.js';
+import { VirtualWorkflow } from './workflows/virtual.js';
 import { isValidBackend, getBackendWorkflow, getWorkflowBackendName } from './workflows/workflow.js';
 import { ButtonValueDialog, MessageModal } from './common/dialogs.js';
 import { isLocal, switchUrl, getUrlParam } from './common/utilities.js';
 import { CONNTYPE } from './constants.js';
 import './layout.js'; // load for side effects only
+import {setupPlotterChart} from "./common/plotter.js";
 import { mainContent, showSerial } from './layout.js';
 
 // Instantiate workflows
@@ -26,12 +28,14 @@ let workflows = {};
 workflows[CONNTYPE.Ble] = new BLEWorkflow();
 workflows[CONNTYPE.Usb] = new USBWorkflow();
 workflows[CONNTYPE.Web] = new WebWorkflow();
+workflows[CONNTYPE.Virtual] = new VirtualWorkflow();
 
 let workflow = null;
 let unchanged = 0;
 let connectionPromise = null;
 
 const btnRestart = document.querySelector('.btn-restart');
+const btnPlotter = document.querySelector('.btn-plotter');
 const btnClear = document.querySelector('.btn-clear');
 const btnConnect = document.querySelectorAll('.btn-connect');
 const btnNew = document.querySelectorAll('.btn-new');
@@ -41,6 +45,7 @@ const btnSaveAs = document.querySelectorAll('.btn-save-as');
 const btnSaveRun = document.querySelectorAll('.btn-save-run');
 const btnInfo = document.querySelector('.btn-info');
 const terminalTitle = document.getElementById('terminal-title');
+const serialPlotter = document.getElementById('plotter');
 
 const messageDialog = new MessageModal("message");
 const connectionType = new ButtonValueDialog("connection-type");
@@ -129,7 +134,42 @@ btnRestart.addEventListener('click', async function(e) {
 
 // Clear Button
 btnClear.addEventListener('click', async function(e) {
+    if (workflow.plotterChart){
+        workflow.plotterChart.data.datasets.forEach((dataSet, index) => {
+            workflow.plotterChart.data.datasets[index].data = [];
+        });
+        workflow.plotterChart.data.labels = [];
+        workflow.plotterChart.options.scales.y.min = -1;
+        workflow.plotterChart.options.scales.y.max = 1;
+        workflow.plotterChart.update();
+    }
     state.terminal.clear();
+});
+
+// Plotter Button
+btnPlotter.addEventListener('click', async function(e){
+    // Hide hardware panel if visible (mutually exclusive)
+    const hardwarePanel = document.getElementById('hardware-panel');
+    if (hardwarePanel && !hardwarePanel.classList.contains('hidden')) {
+        hardwarePanel.classList.add('hidden');
+        const hardwareBtn = document.getElementById('btn-hardware');
+        if (hardwareBtn) {
+            hardwareBtn.classList.remove('active');
+        }
+    }
+
+    serialPlotter.classList.toggle("hidden");
+    if (workflow && !workflow.plotterEnabled){
+        await setupPlotterChart(workflow);
+        workflow.plotterEnabled = true;
+    }
+
+    // Resize terminal to account for plotter height
+    import('./layout.js').then(module => {
+        if (module.refitTerminal) {
+            module.refitTerminal();
+        }
+    });
 });
 
 btnInfo.addEventListener('click', async function(e) {
@@ -237,7 +277,13 @@ async function checkReadOnly() {
 
 /* Update the filename and update the UI */
 function setFilename(path) {
+    // Use the extension_map to figure out the file icon
     let filename = path;
+
+    // Prepend an icon to the path
+    const [style, icon] = getFileIcon(path);
+    filename = `<i class="${style} ${icon}"></i> ` + filename;
+
     if (path === null) {
         filename = "[New Document]";
         btnSave.forEach((b) => b.style.display = 'none');
@@ -516,18 +562,22 @@ async function setupXterm() {
             background: '#333',
             foreground: '#ddd',
             cursor: '#ddd',
-        }
+        },
+        fontFamily: '"FreeMono-Blinka", "Courier New", monospace',
+        convertEol: true,  // Convert line endings
     });
-
-    state.fitter = new FitAddon();
-    state.terminal.loadAddon(state.fitter);
 
     state.terminal.loadAddon(new WebLinksAddon());
 
     state.terminal.open(document.getElementById('terminal'));
     state.terminal.onData(async (data) => {
-        if (await checkConnected()) {
-            workflow.serialTransmit(data);
+        try {
+            if (await checkConnected()) {
+                await workflow.serialTransmit(data);
+            }
+        } catch (error) {
+            console.error('Error in terminal onData handler:', error);
+            // Don't let terminal errors crash the entire application
         }
     });
 }
@@ -551,8 +601,9 @@ function loadParameterizedContent() {
     return documentState;
 }
 
-document.addEventListener('DOMContentLoaded', async (event) => {
+document.addEventListener('DOMContentLoaded', async () => {
     await setupXterm();
+
     btnConnect.forEach((element) => {
         element.addEventListener('click', async function(e) {
             e.preventDefault();
@@ -570,6 +621,7 @@ document.addEventListener('DOMContentLoaded', async (event) => {
 
     // Check backend param and load appropriate type if specified
     let backend = getBackend();
+
     if (backend) {
         await loadWorkflow(backend);
         // If we don't have all the info we need to connect
@@ -588,7 +640,7 @@ document.addEventListener('DOMContentLoaded', async (event) => {
             }
         }
     } else {
-        //await showMessage("USB Workflow is currently experiencing issues. See <a href=\"https://github.com/circuitpython/web-editor/issues/203\">GitHub issue #203</a> for more details. Please use Web Workflow.");
+        // No backend specified, show connection selection dialog
         await checkConnected();
     }
 });

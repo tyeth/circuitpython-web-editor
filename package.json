@@ -9,21 +9,27 @@
     "preview": "vite preview"
   },
   "devDependencies": {
-    "sass": "^1.78.0",
-    "vite": "^5.4.3"
+    "sass": "^1.93.2",
+    "vite": "^7.1.7",
+    "vite-plugin-mkcert": "^1.17.8"
   },
   "dependencies": {
-    "@adafruit/ble-file-transfer-js": "adafruit/ble-file-transfer-js#1.0.2",
-    "@adafruit/circuitpython-repl-js": "adafruit/circuitpython-repl-js#3.1.1",
-    "@codemirror/lang-python": "^6.1.6",
-    "@fortawesome/fontawesome-free": "^6.6.0",
+    "@adafruit/ble-file-transfer-js": "adafruit/ble-file-transfer-js#1.0.4",
+    "@adafruit/circuitpython-repl-js": "adafruit/circuitpython-repl-js#3.2.4",
+    "@codemirror/lang-python": "^6.2.1",
+    "@fortawesome/fontawesome-free": "^7.0.1",
     "@xterm/addon-fit": "^0.10.0",
     "@xterm/addon-web-links": "^0.11.0",
     "@xterm/xterm": "^5.5.0",
-    "codemirror": "^6.0.1",
+    "chart.js": "^4.5.0",
+    "codemirror": "^6.0.2",
     "file-saver": "^2.0.5",
-    "focus-trap": "^7.5.4",
-    "idb-keyval": "^6.2.1",
-    "jszip": "^3.10.1"
+    "focus-trap": "^7.6.1",
+    "idb-keyval": "^6.2.2",
+    "jszip": "^3.10.1",
+    "webbluetooth": "^3.3.2"
+  },
+  "optionalDependencies": {
+    "@rollup/rollup-linux-x64-gnu": "^4.52.0"
   }
 }

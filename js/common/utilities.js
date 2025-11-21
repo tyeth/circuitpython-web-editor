@@ -41,10 +41,9 @@ function makeUrl(url, extraParams = {}) {
     return new URL(oldUrl) + buildHash(urlParams);
 }
 
-// Check if the current url is a valid CircuitPython Web Workflow local device name
+// Check for any local MDNS name, not limited to Circuitpython default names
 function isMdns() {
-    // Check for cpy-XXXXXX.local (and optionally cpy-XXXXXX-###.local for mDNS name resolution)
-    return location.hostname.search(/cpy-[0-9a-f]{6}(?:-[0-9]+)?.local/gi) == 0;
+    return location.hostname.endsWith(".local");
 }
 
 // Check if the current url is an IP address
@@ -55,6 +54,25 @@ function isIp() {
 // Check if the current url is a Web Workflow, IP, or Test Address and current path is /code/
 function isLocal() {
     return (isMdns() || location.hostname == "localhost" || isIp()) && (location.pathname == "/code/");
+}
+
+// Test to see if browser is running on Microsoft Windows OS
+function isMicrosoftWindows() {
+    // Newer test on Chromium
+    if (navigator.userAgentData?.platform === "Windows") {
+        return true;
+    } else if (navigator.userAgent.includes("Windows")) {
+        return true;
+    }
+    return false;
+}
+
+// Test to see if browser is running on Microsoft Windows OS
+function isChromeOs() {
+    if (navigator.userAgent.includes("CrOS")) {
+        return true;
+    }
+    return false;
 }
 
 // Parse out the url parameters from the current url
@@ -123,6 +141,23 @@ function readUploadedFileAsArrayBuffer(inputFile) {
     });
 };
 
+// Load a setting from local storage with a default value if it doesn't exist
+function loadSetting(setting, defaultValue) {
+    let value = JSON.parse(window.localStorage.getItem(setting));
+    console.log(`Loading setting ${setting} with value ${value}`);
+    if (value == null) {
+      return defaultValue;
+    }
+
+    return value;
+}
+
+// Save a setting to local storage
+function saveSetting(setting, value) {
+    console.log(`Saving setting ${setting} with value ${value}`);
+    window.localStorage.setItem(setting, JSON.stringify(value));
+}
+
 export {
     isTestHost,
     buildHash,
@@ -130,11 +165,15 @@ export {
     isMdns,
     isIp,
     isLocal,
+    isMicrosoftWindows,
+    isChromeOs,
     getUrlParams,
     getUrlParam,
     timeout,
     sleep,
     switchUrl,
     switchDevice,
-    readUploadedFileAsArrayBuffer
+    readUploadedFileAsArrayBuffer,
+    loadSetting,
+    saveSetting
 };
